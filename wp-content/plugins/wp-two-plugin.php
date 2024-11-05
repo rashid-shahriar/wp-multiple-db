@@ -2,8 +2,8 @@
 
 /**
  * Plugin Name: WP Two Plugin
- * Description: A plugin to manage posts from wp-two database.
- * Version: 1.0
+ * Description: A plugin to manage posts from wp-two database with CRUD functionality.
+ * Version: 1.1
  * Author: Your Name
  */
 
@@ -23,40 +23,76 @@ function wp_two_plugin_menu()
 
 add_action('admin_menu', 'wp_two_plugin_menu');
 
-// Display posts in wp-two
+// Display posts in wp-two and manage CRUD
 function wp_two_posts_page()
 {
     global $mydb;
+
+    // Handle form submissions
+    if (isset($_POST['action'])) {
+        if ($_POST['action'] === 'add_post') {
+            $title = sanitize_text_field($_POST['title']);
+            $content = sanitize_textarea_field($_POST['content']);
+            $mydb->insert('post', array('title' => $title, 'des' => $content));
+            echo '<div class="updated"><p>Post added successfully.</p></div>';
+        }
+
+        if ($_POST['action'] === 'update_post' && !empty($_POST['id'])) {
+            $id = intval($_POST['id']);
+            $title = sanitize_text_field($_POST['title']);
+            $content = sanitize_textarea_field($_POST['content']);
+            $mydb->update('post', array('title' => $title, 'des' => $content), array('id' => $id));
+            echo '<div class="updated"><p>Post updated successfully.</p></div>';
+        }
+
+        if ($_POST['action'] === 'delete_post' && !empty($_POST['id'])) {
+            $id = intval($_POST['id']);
+            $mydb->delete('post', array('id' => $id));
+            echo '<div class="updated"><p>Post deleted successfully.</p></div>';
+        }
+    }
+
+    // Display the add/update form
+?>
+    <h2>WP Two Posts</h2>
+    <form method="post">
+        <input type="hidden" name="action" value="add_post">
+        <label for="title">Title:</label><br>
+        <input type="text" name="title" id="title" required><br><br>
+        <label for="content">Content:</label><br>
+        <textarea name="content" id="content" required></textarea><br><br>
+        <input type="submit" value="Add Post">
+    </form>
+    <hr>
+    <?php
+
+    // Display existing posts with edit and delete options
     $rows = $mydb->get_results("SELECT * FROM post");
 
     if (!empty($rows)) {
         foreach ($rows as $row) {
-            echo 'Post ID: ' . $row->id . '<br>';
-            echo 'Title: ' . $row->title . '<br>';
-            echo 'Content: ' . $row->des . '<br><br>';
+    ?>
+            <div>
+                <strong>Post ID:</strong> <?php echo $row->id; ?><br>
+                <strong>Title:</strong> <?php echo $row->title; ?><br>
+                <strong>Content:</strong> <?php echo $row->des; ?><br>
+                <form method="post" style="display:inline-block;">
+                    <input type="hidden" name="action" value="update_post">
+                    <input type="hidden" name="id" value="<?php echo $row->id; ?>">
+                    <input type="text" name="title" value="<?php echo esc_attr($row->title); ?>" required>
+                    <textarea name="content" required><?php echo esc_textarea($row->des); ?></textarea>
+                    <input type="submit" value="Update">
+                </form>
+                <form method="post" style="display:inline-block;">
+                    <input type="hidden" name="action" value="delete_post">
+                    <input type="hidden" name="id" value="<?php echo $row->id; ?>">
+                    <input type="submit" value="Delete" onclick="return confirm('Are you sure you want to delete this post?');">
+                </form>
+                <hr>
+            </div>
+<?php
         }
     } else {
-        echo 'No posts found in the wp-two database.';
+        echo '<p>No posts found in the wp-two database.</p>';
     }
-}
-
-
-function get_wp_two_posts()
-{
-    global $mydb;
-    $output = '';
-
-    $rows = $mydb->get_results("SELECT * FROM post");
-
-    if (!empty($rows)) {
-        foreach ($rows as $row) {
-            $output .= 'Post ID: ' . $row->id . '<br>';
-            $output .= 'Title: ' . $row->title . '<br>';
-            $output .= 'Content: ' . $row->des . '<br><br>';
-        }
-    } else {
-        $output .= 'No posts found in the wp-two database.';
-    }
-
-    return $output;
 }
